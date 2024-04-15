@@ -7,6 +7,9 @@ const int calibratePower = 50;
 const int calibrateTime = 25;
 int calFlag = 1;
 
+const int RED_PIN = 9;
+const int GREEN_PIN = 10;
+
 void setup()
 {
 Serial.begin(9600);
@@ -18,6 +21,12 @@ pinMode(PWM, OUTPUT);
 digitalWrite(DIR_A, LOW);
 digitalWrite(DIR_B, LOW);
 analogWrite(PWM, 0);
+//LED
+pinMode(RED_PIN, OUTPUT);
+pinMode(GREEN_PIN, OUTPUT);
+//make sure LEDs are off to begin
+digitalWrite(RED_PIN, LOW);
+digitalWrite(GREEN_PIN, LOW);
 
 while(1){
   if ((Serial.available() > 0) && (calFlag)) { // Check if data is available to read
@@ -46,6 +55,8 @@ while(1){
         break;
     }
 }
+//turn red LED on
+digitalWrite(RED_PIN, HIGH);
 }
 while(1){
   if ((Serial.available() >= 3)) { // Check if data is available to read
@@ -78,8 +89,27 @@ while(1){
                //Off
                 digitalWrite(DIR_A, LOW);
                 digitalWrite(DIR_B, LOW);
-                analogWrite(PWM, 0);
-                  
+                analogWrite(PWM, 0);   
+              }
+              //activating LEDS requires this format 'gXX'
+              //where Xs are burner inputs
+              else if(direct == 'g'){
+                //turn on green led
+                digitalWrite(RED_PIN, LOW);
+                digitalWrite(GREEN_PIN, HIGH);
+                //Off
+                digitalWrite(DIR_A, LOW);
+                digitalWrite(DIR_B, LOW);
+                analogWrite(PWM, 0); 
+              }
+              else if(direct == 'r'){
+                //turn on red led
+                digitalWrite(RED_PIN, HIGH);
+                digitalWrite(GREEN_PIN, LOW);
+                //Off
+                digitalWrite(DIR_A, LOW);
+                digitalWrite(DIR_B, LOW);
+                analogWrite(PWM, 0); 
               }
       }
 }
