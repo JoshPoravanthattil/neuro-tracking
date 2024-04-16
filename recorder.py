@@ -22,21 +22,25 @@ def parse_args():
 def main():
     """ Main """
     args = parse_args()
+    delta_t = 500
 
     # mv_iterator = EventsIterator(input_path=args.event_file_path, delta_t=1000)
 
-    counter = 0  # This will track how many events we processed
-    mv_iterator = EventsIterator(input_path=args.event_file_path, delta_t=1000)
+    # counter = 0  # This will track how many events we processed
+    # event_rate = 0
+    mv_iterator = EventsIterator(input_path=args.event_file_path, delta_t=delta_t)
     height, width = mv_iterator.get_size()  # Camera Geometry
-    
+    left_bound = 427
+    right_bound = 853
     for ind, evs in enumerate(mv_iterator):
-        if ind % 150 == 0:
+        if ind % 100 == 0:
             frame = (128*np.ones((height, width))).astype('uint8')
             mean_shift_input = []
-            print("----- New event buffer! -----")
+            # print("----- New event buffer! -----")
             if evs.size == 0:
                 print("fart")
             else:
+                print(sum((evs['x']>left_bound) & (evs['x']<right_bound)))
                 for event in evs:
                     # print(f"x: {event['x']}, y: {event['y']}, p: {event['p']}, t: {event['t']}")
                     x = int(event['x'])
@@ -46,7 +50,7 @@ def main():
                     frame[y][x] = 255
                     mean_shift_input.append((x, y))
                 cv2.imshow('yeet', frame.astype('uint8'))
-                print(mean_shift_input)
+                # print(mean_shift_input)
                 cv2.waitKey(1)
     
 
