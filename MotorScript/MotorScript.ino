@@ -3,8 +3,8 @@
 const int DIR_A = 5;
 const int DIR_B = 4;
 const int PWM = 6;
-const int calibratePower = 50;
-const int calibrateTime = 25;
+const int calibratePower = 200;
+const int calibrateTime = 100;
 int calFlag = 1;
 
 const int RED_PIN = 9;
