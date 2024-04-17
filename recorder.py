@@ -32,6 +32,9 @@ def main():
     height, width = mv_iterator.get_size()  # Camera Geometry
     left_bound = 427
     right_bound = 853
+    left_rate = 0
+    right_rate = 0
+    mid_rate = 0
     for ind, evs in enumerate(mv_iterator):
         if ind % 100 == 0:
             frame = (128*np.ones((height, width))).astype('uint8')
@@ -40,7 +43,17 @@ def main():
             if evs.size == 0:
                 print("fart")
             else:
-                print(sum((evs['x']>left_bound) & (evs['x']<right_bound)))
+                left_rate = sum((evs['x']<left_bound))
+                mid_rate = sum((evs['x']>left_bound) & (evs['x']<right_bound))
+                right_rate = sum((evs['x']>right_bound))
+
+                if left_rate > mid_rate and left_rate > right_rate:
+                    print("move left!")
+                elif right_rate > left_rate and right_rate > mid_rate:
+                    print("move right!")
+                else:
+                    print("CENTER")
+                
                 for event in evs:
                     # print(f"x: {event['x']}, y: {event['y']}, p: {event['p']}, t: {event['t']}")
                     x = int(event['x'])
