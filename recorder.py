@@ -1,3 +1,6 @@
+import metavision_hal
+from metavision_hal import I_LL_Biases
+from metavision_core.event_io.raw_reader import initiate_device
 from metavision_core.event_io import EventsIterator
 from metavision_sdk_core import PeriodicFrameGenerationAlgorithm
 from metavision_sdk_ui import EventLoop, BaseWindow, Window, UIAction, UIKeyEvent
@@ -5,6 +8,7 @@ from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 import time
+
 
 def parse_args():
     import argparse
@@ -18,23 +22,33 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
 def main():
     """ Main """
     args = parse_args()
     delta_t = 500
 
-    # mv_iterator = EventsIterator(input_path=args.event_file_path, delta_t=1000)
+    device = initiate_device(path=args.event_file_path)
+    if device.get_i_erc_module():  # we test if the facility is available on this device before using it
+        device.get_i_erc_module().enable(False)
 
-    # counter = 0  # This will track how many events we processed
-    # event_rate = 0
-    mv_iterator = EventsIterator(input_path=args.event_file_path, delta_t=delta_t)
+    # mv_iterator = EventsIterator(device=device, input_path=args.event_file_path, delta_t=delta_t)
+    mv_iterator = EventsIterator.from_device(device=device, delta_t=delta_t)
+
     height, width = mv_iterator.get_size()  # Camera Geometry
     left_bound = 427
     right_bound = 853
     left_rate = 0
     right_rate = 0
     mid_rate = 0
+
+    # Instantiate the I_LL_Biases object (assuming you have initialized your device)
+    biases = device.get_i_ll_biases()
+    # Set bias values
+    success1 = biases.set('bias_diff_off', 50)
+    success2 = biases.set('bias_diff_on', 50)
+    success3 = biases.set('bias_hpf', 69)
+    # print(success1, success2, success3)
+
     for ind, evs in enumerate(mv_iterator):
         if ind % 100 == 0:
             frame = (128*np.ones((height, width))).astype('uint8')
@@ -65,35 +79,10 @@ def main():
                 cv2.imshow('yeet', frame.astype('uint8'))
                 # print(mean_shift_input)
                 cv2.waitKey(1)
-    
-
-
-    # # Process events
-    # for evs in mv_iterator:
-    #     print("----- New event buffer! -----")
-    #     if evs.size == 0:
-    #         print("The current event buffer is empty.")
-    #     else:
-    #         min_t = evs['t'][0]   # Get the timestamp of the first event of this callback
-    #         max_t = evs['t'][-1]  # Get the timestamp of the last event of this callback
-    #         global_max_t = max_t  # Events are ordered by timestamp, so the current last event has the highest timestamp
-
-    #         counter = evs.size  # Local counter
-    #         global_counter += counter  # Increase global counter
-
-    #         print(f"There were {counter} events in this event buffer.")
-    #         print(f"There were {global_counter} total events up to now.")
-    #         print(f"The current event buffer included events from {min_t} to {max_t} microseconds.")
-    #         print("----- End of the event buffer! -----")
-
-    # # Print the global statistics
-    # duration_seconds = global_max_t / 1.0e6
-    # print(f"There were {global_counter} events in total.")
-    # print(f"The total duration was {duration_seconds:.2f} seconds.")
-    # if duration_seconds >= 1:  # No need to print this statistics if the total duration was too short
-    #     print(f"There were {global_counter / duration_seconds :.2f} events per second on average.")
 
 
 if __name__ == "__main__":
+    # bias_file_path = "~/Documents/metavision/biases/biases.bias"
+    # apply_bias_configuration(bias_file_path)
     main()
 
