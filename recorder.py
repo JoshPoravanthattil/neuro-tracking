@@ -8,7 +8,8 @@ from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 import time
-
+import serial
+import serial.tools.list_ports as ports
 
 def parse_args():
     import argparse
@@ -22,10 +23,27 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def calibrate_cam(ser=serial.Serial):
+     #calibrate the camera position
+    while(1):
+        inputSer = input("Enter a character: ")[0]
+        ser.write(inputSer.encode())
+        if(inputSer == 'w'):
+            break
+
 def main():
     """ Main """
     args = parse_args()
     delta_t = 500
+
+    com_ports = list(ports.comports())  # create a list of com ['COM1','COM2']
+    for i in com_ports:
+        print(i.device)  # returns 'COMx'
+
+    #Initialize serial coms with arduino
+    # ser = serial.Serial('COM3', 9600)
+    ser = serial.Serial('/dev/ttyUSB0', 9600)
+    calibrate_cam(ser=ser)
 
     device = initiate_device(path=args.event_file_path)
     if device.get_i_erc_module():  # we test if the facility is available on this device before using it
@@ -35,11 +53,15 @@ def main():
     mv_iterator = EventsIterator.from_device(device=device, delta_t=delta_t)
 
     height, width = mv_iterator.get_size()  # Camera Geometry
-    left_bound = 427
-    right_bound = 853
+    percentage_center = 0.6 #percentage of frame considered center
+    left_bound = int(1280*(1-percentage_center)/2)
+    right_bound = int(1280-left_bound)
     left_rate = 0
     right_rate = 0
     mid_rate = 0
+    tot_rate = 0
+    position = 0 # 0=left, 1=center, 2=right, -1=lost
+    last_move = time.time()
 
     # Instantiate the I_LL_Biases object (assuming you have initialized your device)
     biases = device.get_i_ll_biases()
@@ -50,7 +72,7 @@ def main():
     # print(success1, success2, success3)
 
     for ind, evs in enumerate(mv_iterator):
-        if ind % 100 == 0:
+        if ind % 200 == 0 and time.time()-last_move > 1:
             frame = (128*np.ones((height, width))).astype('uint8')
             mean_shift_input = []
             # print("----- New event buffer! -----")
@@ -60,13 +82,30 @@ def main():
                 left_rate = sum((evs['x']<left_bound))
                 mid_rate = sum((evs['x']>left_bound) & (evs['x']<right_bound))
                 right_rate = sum((evs['x']>right_bound))
+                tot_rate = sum([left_rate, right_rate, mid_rate])
 
-                if left_rate > mid_rate and left_rate > right_rate:
+                if tot_rate < 100:
+                    ser.write(("rxx").encode())
+                    if position == 0:
+                        print("LOST... last seen left")
+                    elif position == 2:
+                        print("LOST... last seen right")
+                elif left_rate > mid_rate and left_rate > right_rate:
+                    ser.write(("gxx").encode())
                     print("move left!")
+                    ser.write(("a51").encode())
+                    last_move = time.time()
+                    position = 0
                 elif right_rate > left_rate and right_rate > mid_rate:
+                    ser.write(("gxx").encode())
                     print("move right!")
+                    ser.write(("d51").encode())
+                    last_move = time.time()
+                    position = 2
                 else:
+                    ser.write(("gxx").encode())
                     print("CENTER")
+                    position = 1
                 
                 for event in evs:
                     # print(f"x: {event['x']}, y: {event['y']}, p: {event['p']}, t: {event['t']}")
@@ -82,7 +121,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # bias_file_path = "~/Documents/metavision/biases/biases.bias"
-    # apply_bias_configuration(bias_file_path)
     main()
 

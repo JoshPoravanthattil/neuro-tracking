@@ -3,8 +3,8 @@
 const int DIR_A = 5;
 const int DIR_B = 4;
 const int PWM = 6;
-const int calibratePower = 200;
-const int calibrateTime = 100;
+const int calibratePower = 100;
+const int calibrateTime = 100; // in ms
 int calFlag = 1;
 
 const int RED_PIN = 9;
@@ -74,8 +74,8 @@ while(1){
               //Counter-Clockwise
                digitalWrite(DIR_A, LOW);
                digitalWrite(DIR_B, HIGH);
-               analogWrite(PWM, sped*25);
-               delay(tim*250);
+               analogWrite(PWM, sped*10);
+               delay(tim*100);
                //Off
                 digitalWrite(DIR_A, LOW);
                 digitalWrite(DIR_B, LOW);
@@ -84,8 +84,8 @@ while(1){
                //Clockwise
                digitalWrite(DIR_A, HIGH);
                digitalWrite(DIR_B, LOW);
-               analogWrite(PWM, sped*25);
-               delay(tim*250);
+               analogWrite(PWM, sped*10);
+               delay(tim*100);
                //Off
                 digitalWrite(DIR_A, LOW);
                 digitalWrite(DIR_B, LOW);
