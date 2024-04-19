@@ -62,6 +62,12 @@ def main():
     tot_rate = 0
     position = 0 # 0=left, 1=center, 2=right, -1=lost
     last_move = time.time()
+    total_success_time = 0
+    total_fail_time = 0
+    percent_success = 0
+    velocity = 0
+    last_x_pos = 0
+    current_x_pos = 0
 
     # Instantiate the I_LL_Biases object (assuming you have initialized your device)
     biases = device.get_i_ll_biases()
@@ -71,42 +77,60 @@ def main():
     success3 = biases.set('bias_hpf', 69)
     # print(success1, success2, success3)
 
+    start_success = False
+    last_ref_time = time.time()
     for ind, evs in enumerate(mv_iterator):
         if ind % 200 == 0 and time.time()-last_move > 1:
             frame = (128*np.ones((height, width))).astype('uint8')
             mean_shift_input = []
             # print("----- New event buffer! -----")
             if evs.size == 0:
-                print("fart")
+                pass
             else:
                 left_rate = sum((evs['x']<left_bound))
                 mid_rate = sum((evs['x']>left_bound) & (evs['x']<right_bound))
                 right_rate = sum((evs['x']>right_bound))
                 tot_rate = sum([left_rate, right_rate, mid_rate])
-
+                
                 if tot_rate < 100:
+                    if start_success == True:
+                        total_fail_time += time.time() - last_ref_time
+                        last_ref_time = time.time()
+                    else:
+                        last_ref_time = time.time()
                     ser.write(("rxx").encode())
                     if position == 0:
                         print("LOST... last seen left")
                     elif position == 2:
                         print("LOST... last seen right")
                 elif left_rate > mid_rate and left_rate > right_rate:
+                    total_success_time += time.time() - last_ref_time
+                    last_ref_time = time.time()
                     ser.write(("gxx").encode())
+                    start_success = True
                     print("move left!")
                     ser.write(("a51").encode())
                     last_move = time.time()
                     position = 0
                 elif right_rate > left_rate and right_rate > mid_rate:
+                    total_success_time += time.time() - last_ref_time
+                    last_ref_time = time.time()
                     ser.write(("gxx").encode())
+                    start_success = True
                     print("move right!")
                     ser.write(("d51").encode())
                     last_move = time.time()
                     position = 2
                 else:
+                    total_success_time += time.time() - last_ref_time
+                    last_ref_time = time.time()
                     ser.write(("gxx").encode())
+                    start_success = True
                     print("CENTER")
                     position = 1
-                
+                if start_success:
+                    percent_success = total_success_time/(total_success_time+total_fail_time)
+                    print(f"Success_rate: {percent_success}")
                 for event in evs:
                     # print(f"x: {event['x']}, y: {event['y']}, p: {event['p']}, t: {event['t']}")
                     x = int(event['x'])
