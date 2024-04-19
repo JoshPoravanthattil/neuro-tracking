@@ -61,7 +61,6 @@ def main():
     mid_rate = 0
     tot_rate = 0
     position = 0 # 0=left, 1=center, 2=right, -1=lost
-    last_move = time.time()
     total_success_time = 0
     total_fail_time = 0
     percent_success = 0
@@ -78,9 +77,10 @@ def main():
     # print(success1, success2, success3)
 
     start_success = False
+    last_move = time.time()
     last_ref_time = time.time()
     for ind, evs in enumerate(mv_iterator):
-        if ind % 200 == 0 and time.time()-last_move > 1:
+        if ind % 200 == 0 and time.time()-last_move > 1 :
             frame = (128*np.ones((height, width))).astype('uint8')
             mean_shift_input = []
             # print("----- New event buffer! -----")
