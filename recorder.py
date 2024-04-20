@@ -53,7 +53,7 @@ def main():
     mv_iterator = EventsIterator.from_device(device=device, delta_t=delta_t)
 
     height, width = mv_iterator.get_size()  # Camera Geometry
-    percentage_center = 0.6 #percentage of frame considered center
+    percentage_center = 0.85 #percentage of frame considered center
     left_bound = int(1280*(1-percentage_center)/2)
     right_bound = int(1280-left_bound)
     left_rate = 0
@@ -61,12 +61,21 @@ def main():
     mid_rate = 0
     tot_rate = 0
     position = 0 # 0=left, 1=center, 2=right, -1=lost
+
+    # Success metric
     total_success_time = 0
     total_fail_time = 0
     percent_success = 0
-    velocity = 0
-    last_x_pos = 0
-    current_x_pos = 0
+    last_move = 0
+    last_ref_time = 0
+    prev_mean_timer = 0
+
+    # Adaptive movement
+    average_velocity = 0
+    alpha = 0.75
+    x_mean = 0
+    current_x_mean = 0
+    prev_x_mean = 0
 
     # Instantiate the I_LL_Biases object (assuming you have initialized your device)
     biases = device.get_i_ll_biases()
@@ -79,10 +88,11 @@ def main():
     start_success = False
     last_move = time.time()
     last_ref_time = time.time()
+    last_check = time.time()
     for ind, evs in enumerate(mv_iterator):
-        if ind % 200 == 0 and time.time()-last_move > 1 :
+        #defaults .2 and time.time() - last_check > .01
+        if time.time()-last_move > .2 and time.time() - last_check > .01:
             frame = (128*np.ones((height, width))).astype('uint8')
-            mean_shift_input = []
             # print("----- New event buffer! -----")
             if evs.size == 0:
                 pass
@@ -93,6 +103,7 @@ def main():
                 tot_rate = sum([left_rate, right_rate, mid_rate])
                 
                 if tot_rate < 100:
+                    average_velocity = 0
                     if start_success == True:
                         total_fail_time += time.time() - last_ref_time
                         last_ref_time = time.time()
@@ -109,7 +120,10 @@ def main():
                     ser.write(("gxx").encode())
                     start_success = True
                     print("move left!")
-                    ser.write(("a51").encode())
+                    if abs(average_velocity) < 30:
+                        ser.write(("a81").encode())
+                    else:
+                        ser.write(("a82").encode())
                     last_move = time.time()
                     position = 0
                 elif right_rate > left_rate and right_rate > mid_rate:
@@ -118,10 +132,24 @@ def main():
                     ser.write(("gxx").encode())
                     start_success = True
                     print("move right!")
-                    ser.write(("d51").encode())
+                    if abs(average_velocity) < 30:
+                        ser.write(("d81").encode())
+                    else:
+                        ser.write(("d82").encode())
                     last_move = time.time()
                     position = 2
                 else:
+                    # In the center
+                    if prev_x_mean == 0:
+                        prev_x_mean = sum(evs['x'])/len(evs['x'])
+                        prev_mean_timer = time.time()
+                    else:
+                        x_mean = sum(evs['x'])/len(evs['x'])
+                        average_velocity = (average_velocity*alpha) + (((x_mean - prev_x_mean))*(1-alpha))
+                        prev_mean_timer = time.time()
+                        #print(f"mean_position: {x_mean}")
+                        # print(f"average_velocity: {average_velocity}")
+                        prev_x_mean = x_mean
                     total_success_time += time.time() - last_ref_time
                     last_ref_time = time.time()
                     ser.write(("gxx").encode())
@@ -138,9 +166,8 @@ def main():
                     # print(f"x: {x}")
                     # print(f"y: {y}")
                     frame[y][x] = 255
-                    mean_shift_input.append((x, y))
+                last_check = time.time()
                 cv2.imshow('yeet', frame.astype('uint8'))
-                # print(mean_shift_input)
                 cv2.waitKey(1)
 
 
